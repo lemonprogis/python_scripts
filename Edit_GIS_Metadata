@@ -36,3 +36,12 @@ def addXMLInfo(metadataPath, newNode, aboveNode, value):
         a.text = value
         #save metadata file
         xml1.write(metadataPath)
+        
+def listmetadatafiles(folder):
+    import os
+    mList = []
+    list = os.listdir(folder)
+    for names in list:
+        if names.endswith(".xml"):
+            mList.append(names)
+    return mList
