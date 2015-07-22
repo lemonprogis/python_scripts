@@ -6,9 +6,11 @@
 #
 # Created:     17/09/2014
 #-------------------------------------------------------------------------------
-def reportUnmatched(tbl1, fields):
-    import arcpy
 
+import arcpy, os
+from itertools import chain
+
+def reportUnmatched(tbl1, fields):
     #get count of selected records
     result = arcpy.GetCount_management(tbl1)
     count = int(result.getOutput(0))
@@ -30,7 +32,7 @@ def reportUnmatched(tbl1, fields):
                     message = message + str(row[i]) + ", "
                     #if you want to do something else with the unmatched results, here is where to add it
                     #####################################
-                    i = i + 1
+                    i += 1
 
                 message = message[0:-2] + "\n"
 
@@ -42,25 +44,17 @@ def reportUnmatched(tbl1, fields):
 
 def removeSHP(name):
     #take out .shp of file name
-    if ".shp" in name:
-        name = name.replace(".shp", "")
-
+    if ".shp" in name: 
+        return name.replace(".shp", "")
     return name
 
 def getCommonFieldNames(table1, table2):
-    import arcpy
 
     #list fields of table1
-    fields1 = arcpy.ListFields(table1)
-    fieldNames1 = []
-    for f1 in fields1:
-        fieldNames1.append(f1.name)
+    fieldNames1 = [str(f.name) for f in arcpy.ListFields(table1)]
 
     #list fields of table2
-    fields2 = arcpy.ListFields(table2)
-    fieldNames2 = []
-    for f2 in fields2:
-        fieldNames2.append(f2.name)
+    fieldNames2 = [str(f.name) for f in arcpy.ListFields(table2)]
 
     #convert lists to sets
     set1 = set(fieldNames1)
@@ -81,7 +75,6 @@ def getCommonFieldNames(table1, table2):
     return matchingFields
 
 def compareTables(table1, joinField1, table2, joinField2):
-    import arcpy, os
 
     #get matching fields
     matchingFields = getCommonFieldNames(table1, table2)
@@ -101,24 +94,10 @@ def compareTables(table1, joinField1, table2, joinField2):
     name2 = removeSHP(os.path.basename(table2))
 
     #create list of full matching field names
-    fullMatchingFields = []
+    fullMatchingFields = list(chain.from_iterable((name1 + field, name2 + field) for field in matchingFields))
+    where_clauses = ["{}.{} <> {}.{}".format(name1, field, name2, field) for field in matchingFields]
 
-    #make query statement. Goal: find records where all attributes don't match
-    wc1 = ""
-
-    #variables to change the field comparison
-    operator = " <> "
-    conjunction = " OR "
-    lenC = len(conjunction)
-
-    #generate query statement and full matching field name list
-    for field in matchingFields:
-        wc1 = wc1 + name1 + "." + field + operator + name2 + "." + field + conjunction
-        fullMatchingFields.append(name1 + "." + field)
-        fullMatchingFields.append(name2 + "." + field)
-
-    #take off the last conjunction
-    wc1 = wc1[0:-lenC]
+    wc1 = " OR ".join(where_clauses)
     print wc1
 
     #Run query: tbl1
@@ -136,7 +115,7 @@ def compareTables(table1, joinField1, table2, joinField2):
     arcpy.AddJoin_management(tbl2, joinField2, tbl1, joinField1)
 
     #just want records where records in tbl1 aren't in tbl2
-    wc2 = name1 + "." + joinField1 + " IS NULL"
+    wc2 = "{}.{} IS NULL".format(name1, joinField1)
 ##    print wc2
 
     #Run query: tbl2
