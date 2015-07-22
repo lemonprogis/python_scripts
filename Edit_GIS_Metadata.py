@@ -1,5 +1,7 @@
+import xml.etree.ElementTree as ET
+import os
+
 def editXMLInfo(metadataPath, node, value):
-    import xml.etree.ElementTree as ET
 
     #get xml file set up
     xml1 = ET.ElementTree()
@@ -17,7 +19,6 @@ def editXMLInfo(metadataPath, node, value):
             xml1.write(metadataPath)
 
 def addXMLInfo(metadataPath, newNode, aboveNode, value):
-    import xml.etree.ElementTree as ET
 
     #get xml file set up
     xml1 = ET.ElementTree()
@@ -38,10 +39,42 @@ def addXMLInfo(metadataPath, newNode, aboveNode, value):
         xml1.write(metadataPath)
         
 def listmetadatafiles(folder):
-    import os
-    mList = []
-    list = os.listdir(folder)
-    for names in list:
-        if names.endswith(".xml"):
-            mList.append(names)
-    return mList
+    return [name for name in os.listdir(folder) if name.endswith(".xml")]
+
+
+
+class GisMetaData(object):
+    '''
+        Use this class to perform edits and additions to GIS Metadata files 
+    '''
+    def __init__(self, metadataPath):
+        ''' 
+        '''
+        self.metadataPath = metadataPath
+        self._et = ET.ElementTree()
+        self.root = self._et.parse(metadataPath)
+
+    def add(self, newNode, aboveNode, value):
+        ''' adds a node to the existing xml
+        '''
+        k = self.root.getiterator(newNode)
+        if len(k) == 0:
+            r = self.root.getiterator(aboveNode)[0]
+            a = ET.SubElement(r, newNode)
+            a.text = value
+            self._et.write(self.metadataPath)
+
+    def edit(self, node, value):
+        ''' edit an existing node in the metadata file
+        '''
+        k = self.root.getiterator(node)
+
+        if len(k) != 0:
+            for r in k:
+                r.text = value
+                self._et.write(self.metadataPath)
+
+    def list_metadata_files(self, folder):
+        ''' List metadata(xml) files in a folder
+        '''
+        return [name for name in os.listdir(folder) if name.endswith(".xml")]
